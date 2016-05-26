@@ -12,7 +12,7 @@ engine = create_engine(BDini.DataBase,echo=True)
 
 
 
-sqlcmd='''select table_name from information_schema.tables where table_name like 'qfq______'; '''
+sqlcmd='''select table_name from information_schema.tables where table_name like 'qfq______' or table_name like 'tmp%'; '''
 result=engine.execute(sqlcmd)
 #for i in range(3):
     #errcode=[]
