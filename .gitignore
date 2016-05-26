@@ -6,4 +6,4 @@
 dist
 build
 # My configurations:
-BDini.py
+tools/BDini.py
