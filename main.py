@@ -1,5 +1,49 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import tushare as ts
+
+def initDB(StCode,LD='',Index=False):
+    di=ts.get_h_data(StCode,index=Index)
+    LASTDATE=di.index[0].strftime('%Y-%m-%d')    
+    return LASTDATE
+
+def jibenmian():
+    pass
+
+def main():
+    #策略名称
+    CLName='MBRG-RSI-VAR9-20151027' 
+    
+    #最后交易日
+    LDate=initDB('159915',LD='',Index=True)
+    print(LDate)
+    
+    #以下是策略
+    #
+    #策略1：基本面筛选  主营收益增长大于40%
+    
+    pass
+
+if __name__=='__main__':
+    main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+
+
+
+
 
 import BDTest as BT    #Back Test 回溯测试
 import BDSys as BD    #数据结构
@@ -180,8 +224,7 @@ zjl=1000000
 
 #项目名称
 StaName='bigdream01'
-#策略名称
-CLName='RSI-VAR9-20151027'
+
 
 ###########################
 
@@ -198,3 +241,4 @@ dataPre(qx,CLName)
 qx.staFun=handle_data(qx,CLName);
 #BT.zwBackTest(qx)
 
+"""
