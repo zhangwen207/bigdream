@@ -1,14 +1,59 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import BDini,b2   #参数文件
+
 import tushare as ts
+from sqlalchemy import create_engine
+
+engine = create_engine(BDini.DataBase,echo=True)
+
 
 def initDB(StCode,LD='',Index=False):
-    di=ts.get_h_data(StCode,index=Index)
-    LASTDATE=di.index[0].strftime('%Y-%m-%d')    
+    """
+    StCode 证券代码，LD  最后交易日，Index   指数 --> LASTDATE 最后交易日
+    检查最新数据，如果mysql DB没有，就下载，并写库。
+    """
+    if Index :      
+        di=ts.get_h_data(StCode,index=Index)
+        LASTDATE=di.index[0].strftime('%Y-%m-%d')
+    else:
+        pass
+    
     return LASTDATE
 
-def jibenmian():
-    pass
+def MBRG():
+    b2.log('获取成长能力数据..........')
+    class FoundException(Exception): pass
+    
+    try:
+        for year in (2017,2016):
+            for season in (4,3,2,1):
+                try:
+                    ds=ts.get_growth_data(year,season)
+                except:
+                    print('ERROR: ts.get_growth_data(%d,%d)'%(year,season))
+                else:
+                    try:
+                        ds.to_sql('growth',engine,if_exists='replace')
+                    except:
+                        print('ERROR: ds.to_sql(%d,%d)'%(year,season))
+                        continue
+                    else:
+                        raise FoundException()
+    except FoundException:    pass   
+    
+    b2.log('获取风险警示板股票数据..........')
+    ds=ts.get_st_classified()
+    ds.to_sql('stcode',engine,if_exists='replace')
+    
+    #删除ST股票，删除主营业务收入增长低于40%的股票
+    result=engine.execute('select * from growth where mbrg>40 and code not in (select code from stcode)')
+    print(result)
+    
+    
+    
+
+
 
 def main():
     #策略名称
@@ -16,13 +61,14 @@ def main():
     
     #最后交易日
     LDate=initDB('159915',LD='',Index=True)
-    print(LDate)
+    #print(LDate)
     
     #以下是策略
     #
     #策略1：基本面筛选  主营收益增长大于40%
+    MBRG()
     
-    pass
+
 
 if __name__=='__main__':
     main()
@@ -80,6 +126,7 @@ def dataPre(qx,xnam0):
         
         
         """
+"""
 VAR2赋值:1日前的最低价
 VAR3赋值:最低价-VAR2的绝对值的3日[1日权重]移动平均/最低价-VAR2和0的较大值的3日[1日权重]移动平均*100
 VAR4赋值:如果收盘价*1.3,返回VAR3*10,否则返回VAR3/10的3日指数移动平均
@@ -164,7 +211,7 @@ DRAWICON(ZCOUNT4=3 AND CVAR ,LOW*0.95,25);
 DRAWICON(ZCOUNT4>=4 AND CVAR ,LOW*0.95,25);
 DRAWICON(ZCOUNT4>=4 AND CVAR ,LOW*0.90,25);
 
-        """
+
         #df['var2']=df['low'].shift(1)
         #df['var3']=ta.SMA(np.array(np.fabs(df['low']-df['var2'])),3)*100/ta.SMA(np.array(np.fmax(df['low']-df['var2'],0)),3)
         #df['var3']=df['var3'].replace(np.inf,df['var3'][np.isfinite(df['var3'])].max())
