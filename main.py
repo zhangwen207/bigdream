@@ -12,8 +12,9 @@ import numpy as np
 engine = create_engine(BDini.DataBase,echo=True)
 
 def readydata(tbname):
-    result=engine.execute('select distinct code from growth where code=603636')
-    return result
+    sqlcmd='''select count(*) from tb_stamp where TableName='%s' and TStamp=curdate()'''%tbname
+    result=engine.execute(sqlcmd)
+    return result.first()
 
 
 def ggzbtj(CLName,code,LASTDATE,rowcount,num):
@@ -90,8 +91,10 @@ def initData(code,LD='',Index=False):
         except:
             b2.log('Warning:qfq%s......New Data Table'%code)
 
-        ds=ts.get_h_data(code)
-        ds.to_sql('qfq'+code,engine,if_exists='replace') 
+        if not readydata('qfq'+code):
+            ds=ts.get_h_data(code)
+            ds.to_sql('qfq'+code,engine,if_exists='replace') 
+            engine.execute('''insert into tb_stamp values ('qfq'%s,curdate())'''%code)
         maxdate=engine.execute(sqlcmd)
         sdate=list(maxdate)[0][0].strftime('%Y-%m-%d')
         #print(sdate+'==='+LASTDATE)
@@ -112,31 +115,32 @@ def MBRG():
     
     b2.log('获取主营业务收入增长数据..........')
     print('获取主营业务收入增长数据..........')
+    if not readydata('growth'):
     #季报数据不一定及时，因此采用试错办法
-    class FoundException(Exception): pass
-    
-    try:
-        for year in (2016,):
-            for season in (4,3,2,1):
-                try:
-                    ds=ts.get_growth_data(year,season)
-                except:
-                    print('ERROR: ts.get_growth_data(%d,%d)'%(year,season))
-                else:
+        class FoundException(Exception): pass       
+        try:
+            for year in (2016,):
+                for season in (4,3,2,1):
                     try:
-                        ds.to_sql('growth',engine,if_exists='replace')
-                        engine.execute('''insert into tb_stamp values ('growth',curdate())''')
+                        ds=ts.get_growth_data(year,season)
                     except:
-                        print('ERROR: ds.to_sql(%d,%d)'%(year,season))
-                        continue
+                        print('ERROR: ts.get_growth_data(%d,%d)'%(year,season))
                     else:
-                        raise FoundException()
-    except FoundException:    pass   
+                        try:
+                            ds.to_sql('growth',engine,if_exists='replace')
+                            engine.execute('''insert into tb_stamp values ('growth',curdate())''')
+                        except:
+                            print('ERROR: ds.to_sql(%d,%d)'%(year,season))
+                            continue
+                        else:
+                            raise FoundException()
+        except FoundException:    pass   
     
     b2.log('获取风险警示板股票数据..........')
-    ds=ts.get_st_classified()
-    ds.to_sql('stcode',engine,if_exists='replace')
-    engine.execute('''insert into tb_stamp values ('stcode',curdate())''')
+    if not readydata('stcode'):
+        ds=ts.get_st_classified()
+        ds.to_sql('stcode',engine,if_exists='replace')
+        engine.execute('''insert into tb_stamp values ('stcode',curdate())''')
     
     #删除ST股票，删除主营业务收入增长低于40%的股票
     #result=engine.execute('select distinct code from growth where mbrg>40 and code not in (select code from stcode)')
