@@ -11,6 +11,11 @@ import numpy as np
 
 engine = create_engine(BDini.DataBase,echo=True)
 
+def readydata(tbname):
+    result=engine.execute('select distinct code from growth where code=603636')
+    return result
+
+
 def ggzbtj(CLName,code,LASTDATE,rowcount,num):
     """
     个股指标统计
@@ -120,6 +125,7 @@ def MBRG():
                 else:
                     try:
                         ds.to_sql('growth',engine,if_exists='replace')
+                        engine.execute('''insert into tb_stamp values ('growth',curdate())''')
                     except:
                         print('ERROR: ds.to_sql(%d,%d)'%(year,season))
                         continue
@@ -130,6 +136,7 @@ def MBRG():
     b2.log('获取风险警示板股票数据..........')
     ds=ts.get_st_classified()
     ds.to_sql('stcode',engine,if_exists='replace')
+    engine.execute('''insert into tb_stamp values ('stcode',curdate())''')
     
     #删除ST股票，删除主营业务收入增长低于40%的股票
     #result=engine.execute('select distinct code from growth where mbrg>40 and code not in (select code from stcode)')
