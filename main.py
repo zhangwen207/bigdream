@@ -17,7 +17,7 @@ def readydata(tbname):
     return result.first()
 
 
-def ggzbtj(CLName,code,LASTDATE,rowcount,num):
+def ggzbtj(CLName,code,rowcount,num):
     """
     个股指标统计
     CLName 策略名称,code  股票代码,LASTDATE 最后交易日,rowcount 总股票数,num 第几个 -->无
@@ -27,9 +27,9 @@ def ggzbtj(CLName,code,LASTDATE,rowcount,num):
     print('%s......进度......%d/%d'%(code,num,rowcount))
     
     #检查数据下载情况
-    df,LD=initData(code,LASTDATE)
+    df=initData(code)
 
-    if LD is None:
+    if df is None:
         return
     
     """
@@ -55,18 +55,20 @@ def bxfx(CLName,codes):
     
     """
     #最后交易日
-    ds,LDate=initData('159915',LD='',Index=True)
+    ds=initData('159915',Index=True)
+    #print(ds)
+    #print(LDate)
     
     m=0
     p = Pool(processes=5)
     for row in codes:
         m=m+1
-        p.apply_async(ggzbtj,[CLName,row[0],LDate,codes.rowcount,m])
+        p.apply_async(ggzbtj,[CLName,row[0],codes.rowcount,m])
     p.close()
     p.join()
     
     
-def initData(code,LD='',Index=False):
+def initData(code,Index=False):
     """
     code 证券代码，LD  最后交易日，Index   指数 --> ds 数据集，LASTDATE 最后交易日
     检查最新数据，如果mysql DB没有，就下载，并写库。
@@ -75,8 +77,9 @@ def initData(code,LD='',Index=False):
     b2.log('获取%s数据..........'%code)
     if Index :      
         ds=ts.get_h_data(code,index=Index)
-        LASTDATE=ds.index[0].strftime('%Y-%m-%d')
-        return ds,LASTDATE
+        #LASTDATE=ds.index[0].strftime('%Y-%m-%d')
+        ds.to_sql('zs'+code,engine,if_exists='replace') 
+        return ds
     else:
         sqlcmd='select date_add(max(date) , interval 1 day) from '+'qfq'+code
         try:
@@ -87,22 +90,23 @@ def initData(code,LD='',Index=False):
                 b2.log('qfq%s......Data Ready'%code)
                 sqlcmd='select * from qfq%s order by date'%code
                 ds=sql.read_sql(sqlcmd,engine,index_col='date')                
-                return ds,LD
+                return ds
         except:
             b2.log('Warning:qfq%s......New Data Table'%code)
 
-        if not readydata('qfq'+code):
+        print('===========%s======%d'%('qfq'+code,readydata('qfq'+code)[0]))
+        if not readydata('qfq'+code)[0]:
             ds=ts.get_h_data(code)
             ds.to_sql('qfq'+code,engine,if_exists='replace') 
-            engine.execute('''insert into tb_stamp values ('qfq'%s,curdate())'''%code)
+            engine.execute('''insert into tb_stamp values ('qfq%s',curdate())'''%code)
         maxdate=engine.execute(sqlcmd)
         sdate=list(maxdate)[0][0].strftime('%Y-%m-%d')
         #print(sdate+'==='+LASTDATE)
         if sdate>LD:
             b2.log('qfq%s......Data Ready'%code)
-            return ds,LD        
+            return ds        
         else:
-            return None,None
+            return None
         
         
 
@@ -115,7 +119,8 @@ def MBRG():
     
     b2.log('获取主营业务收入增长数据..........')
     print('获取主营业务收入增长数据..........')
-    if not readydata('growth'):
+    #print(readydata('growth')[0])
+    if not readydata('growth')[0]:
     #季报数据不一定及时，因此采用试错办法
         class FoundException(Exception): pass       
         try:
@@ -137,7 +142,7 @@ def MBRG():
         except FoundException:    pass   
     
     b2.log('获取风险警示板股票数据..........')
-    if not readydata('stcode'):
+    if not readydata('stcode')[0]:
         ds=ts.get_st_classified()
         ds.to_sql('stcode',engine,if_exists='replace')
         engine.execute('''insert into tb_stamp values ('stcode',curdate())''')
@@ -146,7 +151,7 @@ def MBRG():
     #result=engine.execute('select distinct code from growth where mbrg>40 and code not in (select code from stcode)')
     
     #测试测试
-    result=engine.execute('select distinct code from growth where code=603636')
+    result=engine.execute('select distinct code from growth where code=600654')
 
     return result
     
