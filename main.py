@@ -12,9 +12,28 @@ import numpy as np
 engine = create_engine(BDini.DataBase,echo=True)
 
 def readydata(tbname):
+    """
+    检查mysql数据和交易日数据是否一致，是否需要下载
+    tbname 表名  -->
+    返回值
+    0 没下载或数据相差一天，需要下载  
+    1 数据一致，不需要下载  
+    -1 当日已下载，但相差不止一天，估计是停牌，忽略
+    """
     sqlcmd='''select count(*) from tb_stamp where TableName='%s' and TStamp=curdate()'''%tbname
     result=engine.execute(sqlcmd)
-    return result.first()
+    if list(result)[0][0]==0:
+        ret=0
+    elif tbname[:3]=='qfq':
+        try:
+            sqlcmd='''SELECT CASE WHEN (select date_add(max(date) , interval 1 day) from  %s )=(select max(date) from zs159915) THEN 0 WHEN (select max(date) from  %s )=(select max(date) from zs159915) THEN 1 ELSE -1 END'''%(tbname,tbname)
+            result=engine.execute(sqlcmd)
+            ret=list(result)[0][0]
+        except:
+            ret=0
+    else:
+        ret=1
+    return ret
 
 
 def ggzbtj(CLName,code,rowcount,num):
@@ -79,34 +98,19 @@ def initData(code,Index=False):
         ds=ts.get_h_data(code,index=Index)
         #LASTDATE=ds.index[0].strftime('%Y-%m-%d')
         ds.to_sql('zs'+code,engine,if_exists='replace') 
-        return ds
     else:
-        sqlcmd='select date_add(max(date) , interval 1 day) from '+'qfq'+code
-        try:
-            maxdate=engine.execute(sqlcmd)
-            sdate=list(maxdate)[0][0].strftime('%Y-%m-%d')
-            #print(sdate+'==='+LASTDATE)
-            if sdate>LD:
-                b2.log('qfq%s......Data Ready'%code)
-                sqlcmd='select * from qfq%s order by date'%code
-                ds=sql.read_sql(sqlcmd,engine,index_col='date')                
-                return ds
-        except:
-            b2.log('Warning:qfq%s......New Data Table'%code)
-
-        print('===========%s======%d'%('qfq'+code,readydata('qfq'+code)[0]))
-        if not readydata('qfq'+code)[0]:
+        tbstatus=readydata('qfq%s'%code)
+        if  tbstatus==1:
+            b2.log('qfq%s......Data Ready'%code)
+            sqlcmd='select * from qfq%s order by date'%code
+            ds=sql.read_sql(sqlcmd,engine,index_col='date')                
+        elif tbstatus==0:
             ds=ts.get_h_data(code)
             ds.to_sql('qfq'+code,engine,if_exists='replace') 
             engine.execute('''insert into tb_stamp values ('qfq%s',curdate())'''%code)
-        maxdate=engine.execute(sqlcmd)
-        sdate=list(maxdate)[0][0].strftime('%Y-%m-%d')
-        #print(sdate+'==='+LASTDATE)
-        if sdate>LD:
-            b2.log('qfq%s......Data Ready'%code)
-            return ds        
         else:
-            return None
+            ds=None
+    return ds
         
         
 
@@ -120,7 +124,7 @@ def MBRG():
     b2.log('获取主营业务收入增长数据..........')
     print('获取主营业务收入增长数据..........')
     #print(readydata('growth')[0])
-    if not readydata('growth')[0]:
+    if readydata('growth')==0:
     #季报数据不一定及时，因此采用试错办法
         class FoundException(Exception): pass       
         try:
@@ -142,16 +146,16 @@ def MBRG():
         except FoundException:    pass   
     
     b2.log('获取风险警示板股票数据..........')
-    if not readydata('stcode')[0]:
+    if not readydata('stcode'):
         ds=ts.get_st_classified()
         ds.to_sql('stcode',engine,if_exists='replace')
         engine.execute('''insert into tb_stamp values ('stcode',curdate())''')
     
     #删除ST股票，删除主营业务收入增长低于40%的股票
-    #result=engine.execute('select distinct code from growth where mbrg>40 and code not in (select code from stcode)')
+    result=engine.execute('select distinct code from growth where mbrg>40 and code not in (select code from stcode)')
     
     #测试测试
-    result=engine.execute('select distinct code from growth where code=600654')
+    #result=engine.execute('select distinct code from growth where code=600654')
 
     return result
     
