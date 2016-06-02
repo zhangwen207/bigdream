@@ -255,7 +255,7 @@ def initData(code,Index=False):
             sqlcmd='select * from qfq%s order by date'%code
             ds=sql.read_sql(sqlcmd,engine,index_col='date')                
         elif tbstatus==0:
-            ds=ts.get_h_data(code)
+            ds=ts.get_h_data(code).sort()
             ds.to_sql('qfq'+code,engine,if_exists='replace') 
             engine.execute('''insert into tb_stamp values ('qfq%s',curdate())'''%code)
         else:
