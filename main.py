@@ -8,6 +8,8 @@ from sqlalchemy import create_engine
 from multiprocessing import Pool
 import pandas.io.sql as sql
 import numpy as np
+import talib as ta
+import pandas as pd
 
 engine = create_engine(BDini.DataBase,echo=True)
 
@@ -154,19 +156,22 @@ def ggzbtj(CLName,code,rowcount,num):
     ####计算卖出信号
     #{卖出：超越上轨10%，无法创新高}
     df['sell']=( df['high']<df['high'].shift(1) ) & (df['close'].shift(1) > df['ma_10'].shift(1)*1.1)
+
     #{卖出：MACD.DEA零轴之上时，下跌超15%,大势已去，不宜久留，当天出现当天要走}
     df['count']=BDta.COUNT((df['close']<0.85*df['close'].rolling(min_periods=1,center=False,window=26).max()) & (df['MACDdiff']>0), BDta.BARSLAST(df['sar']>df['close']))
 
-    print(df)
+
     #整理卖出信号，sell=1
     #连续发出卖出信号，则标记首次
     df['count'][df['count']!=1]=0
     #汇总两个卖出信号
-    df['sell']=df['sell']+df['count']        
+    df['sell']=df['sell']+df['count']  
+
 
 
     ####计算买入信号 
     #{买入：一个下跌波段里，发生RSI上穿11或20，2次（含）以上}
+    df['rsi']=BDta.RSI(df)
     df['crsi']=BDta.CROSS(df['rsi'],11) 
     df['crsi2']=BDta.CROSS(df['rsi'],20)
     df['crsi'][df['crsi2']==1]=1 
@@ -181,6 +186,7 @@ def ggzbtj(CLName,code,rowcount,num):
     #{买入：一个下跌波段里，出现2次（含）以上VAR9尖峰}
     df['var2']=df['low'].shift(1)
     df['var3']=ta.SMA(np.array(np.fabs(df['low']-df['var2'])),3)*100/ta.SMA(np.array(np.fmax(df['low']-df['var2'],0)),3)
+    
     df['var3']=df['var3'].replace(np.inf,df['var3'][np.isfinite(df['var3'])].max())
     df['var4']=pd.ewma(np.array(df['var3']*10),span=3)
     df['var5']=df['low'].rolling(min_periods=1,center=False,window=30).min()
@@ -196,12 +202,14 @@ def ggzbtj(CLName,code,rowcount,num):
     df['CVAR'][df['var8'].shift(2)>df['var8'].shift(1)]=0
 
     df['ccount']=BDta.COUNT(df['CVAR'], df['N'])
-    
+
     df['ccount'][df['ccount']!=0]=df['ccount']-1
+
     df['buy']=df['bcount']+df['ccount']
     
-    
-    print(df)
+    print(df.loc[:,('buy','sell','kprice')][df['buy']!=0|df['sell']])
+    df.to_sql('zb'+code,engine,if_exists='replace') 
+
     
    
      
