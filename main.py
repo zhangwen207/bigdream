@@ -143,7 +143,7 @@ def ggzbtj(CLName,code,rowcount,num):
     #  计算交易价格kprice和策略分析采用的价格dprice,kprice一般采用次日的开盘价
     #买入价钱：明日以当日收盘价挂买单。如果买点当日收盘价>=明日最低价，则以当日收盘价为买入价，
     #否则，买入价为0，表示没买上         
-    df['dprice']=df['close']
+    #df['dprice']=df['close']
     df['kprice']=np.where(df['close']>=df['low'].shift(-1),df['close'],0)   
     
     df=BDta.MA(df,5,'close');
@@ -206,9 +206,23 @@ def ggzbtj(CLName,code,rowcount,num):
     df['ccount'][df['ccount']!=0]=df['ccount']-1
 
     df['buy']=df['bcount']+df['ccount']
+    df['total']=0
     
+    #卖出策略
+
+    buyprice=0
+    cs=0
+    for i in df.index:
+        if df.get_value(i,'buy')==1:
+            cs=cs+1
+            buyprice=df.get_value(i,'kprice')
+
+                
+            
+    print(i)
+        
     print(df.loc[:,('buy','sell','kprice')][df['buy']!=0|df['sell']])
-    df.to_sql('zb'+code,engine,if_exists='replace') 
+    df.to_sql('zb'+code,engine,if_exists='replace')         
 
     
    
