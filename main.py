@@ -54,6 +54,8 @@ def ggzbtj(CLName,code,rowcount,num):
     if df is None:
         return
     
+    b2.log('计算%s卖买指标........'%code)
+    print('计算%s卖买指标..........'%code)    
     """
     以下是指标计算
 
@@ -210,6 +212,7 @@ def ggzbtj(CLName,code,rowcount,num):
     df['profit']=0.0
     
     #卖出策略
+    
 
     buyprice=0
     cs=0  #次数
@@ -231,13 +234,13 @@ def ggzbtj(CLName,code,rowcount,num):
             continue
         
         if s.sell==1 and buyprice !=0:
-            df.set_value(i,'profit',(kprice*cs-xsum))
+            df.set_value(i,'profit',(s.kprice*cs-xsum)*100/buyprice)
             buyprice=0
             cs=0    
             xsum=0
             continue
         
-        if s.buy != 0 and kprice !=0:
+        if s.buy != 0 and s.kprice !=0:
             cs=cs+1
             buyprice=s.kprice
             xsum=xsum+buyprice
@@ -245,13 +248,13 @@ def ggzbtj(CLName,code,rowcount,num):
         
         if buyprice!=0 and s.buy ==0 and s.sell ==0:
             if s.high>=buyprice*1.05  :
-                df.set_value(i,'profit',buyprice*1.05*cs-xsum)
+                df.set_value(i,'profit',(buyprice*1.05*cs-xsum)*100/buyprice)
                 df.set_value(i,'sell',1)
                 buyprice=0
                 cs=0 
                 xsum=0
             if s.low<=buyprice*0.85:
-                df.set_value(i,'profit',buyprice*0.85*cs-xsum)
+                df.set_value(i,'profit',(buyprice*0.85*cs-xsum)*100/buyprice)
                 df.set_value(i,'sell',1)
                 buyprice=0
                 cs=0 
@@ -262,10 +265,11 @@ def ggzbtj(CLName,code,rowcount,num):
     
     #持仓价值，取最后一日收盘价
     if buyprice !=0:
-        df.set_value(ii,'profit',(df.get_value(ii,'close')*cs-xsum))
+        df.set_value(ii,'profit',(df.get_value(ii,'close')*cs-xsum)*100/buyprice)
         df.set_value(ii,'sell',1)
         
-    engine.execute('''insert into score values (curdate(),'%s','%s',%d,%d,%f,%f,%d,%d)'''%(code,CLName,df['buy'][df.buy>0].count(),df['sell'][df.sell>0].count(),df['profit'].sum(),df['profit'][df.profit>0].count()*100/df['buy'][df.buy>0].count(),df.get_value(ii,'buy'),df.get_value(ii,'sell')))
+    mrnum=df['buy'][(df.buy>0) & (df.kprice >0)].count()
+    engine.execute('''insert into score values (curdate(),'%s','%s',%d,%d,%f,%f,%d,%d)'''%(code,CLName,mrnum,df['sell'][df.sell>0].count(),df['profit'].sum(),df['profit'][df.profit>0].count()*100/mrnum,df.get_value(ii,'buy'),df.get_value(ii,'sell')))
         
     print(df.loc[:,('buy','sell','kprice','profit')][df['buy']!=0|df['sell']])
     df.to_sql('zb'+code,engine,if_exists='replace')         
@@ -309,6 +313,7 @@ def initData(code,Index=False):
     如果不是没有最新交易日数据（例如：没数据或停牌），返回None
     """
     b2.log('获取%s数据..........'%code)
+    print('获取%s数据..........'%code)    
     if Index :      
         ds=ts.get_h_data(code,index=Index)
         #LASTDATE=ds.index[0].strftime('%Y-%m-%d')
@@ -370,7 +375,7 @@ def MBRG():
     result=engine.execute('select distinct code from growth where mbrg>0 and code not in (select code from stcode)')
     
     #测试测试
-    #result=engine.execute('select distinct code from growth where code=000001')
+    #result=engine.execute('select distinct code from growth where code=002723')
 
     return result
     
