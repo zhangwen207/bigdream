@@ -270,9 +270,9 @@ def ggzbtj(CLName,code,rowcount,num):
     print(df.loc[:,('buy','sell','kprice','profit')][df['buy']!=0|df['sell']])
     df.to_sql('zb'+code,engine,if_exists='replace')         
     
-    sqlcmd='select * from score order by ratio'
-    ds=sql.read_sql(sqlcmd,engine)    
-    print(ds)
+    #sqlcmd='select * from score order by ratio'
+    #ds=sql.read_sql(sqlcmd,engine)    
+    #print(ds)
 
     
    
@@ -367,7 +367,7 @@ def MBRG():
         engine.execute('''insert into tb_stamp values ('stcode',curdate())''')
     
     #删除ST股票，删除主营业务收入增长低于40%的股票
-    result=engine.execute('select distinct code from growth where mbrg>40 and code not in (select code from stcode)')
+    result=engine.execute('select distinct code from growth where mbrg>0 and code not in (select code from stcode)')
     
     #测试测试
     #result=engine.execute('select distinct code from growth where code=000001')
