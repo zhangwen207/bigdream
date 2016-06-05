@@ -388,7 +388,14 @@ def MBRG():
     return result
     
     
+def report():
+    sqlcmd='select growth.name,score.* from score join growth on score.code=growth.code where buymark=1 and date=curdate() order by ratio desc'
+    ds=sql.read_sql(sqlcmd,engine) 
+    ds.to_csv('/tmp/info.txt')
+
+    b2.SendMail('info','','/tmp/info.txt')
     
+
 
 
 
@@ -406,6 +413,8 @@ def main():
     #策略2：个股并行分析
     bxfx(CLName,MBRG_codes)
     
+    #推送运算结果
+    report()
 
 
 if __name__=='__main__':
