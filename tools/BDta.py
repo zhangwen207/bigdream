@@ -46,12 +46,14 @@ def MACD(df, n_fast=12, n_slow=26,ksgn='close'):
     return df
 
 #RSI  
-def RSI(df,timeperiod=4): 
+def RSI(df): 
     '''
     增加一列sar
 
     '''
-    df['rsi']=ta.RSI(np.array(df['close']),timeperiod=4)   
+    #df['rsi0']=ta.RSI(np.array(df['close']),timeperiod=6)  
+    df['ref1']=df['close'].shift(1)
+    df['rsi']=ta.SMA(np.array(np.fmax(df.close-df.ref1,0)),6)/ta.SMA(np.array(np.fabs(df.close-df.ref1)),6)*100
     return df
 
 """

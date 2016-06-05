@@ -23,7 +23,7 @@ def readydata(tbname):
     1 数据一致，不需要下载  
     -1 当日已下载，但相差不止一天，估计是停牌，忽略
     """
-    sqlcmd='''select count(*) from tb_stamp where TableName='%s' and TStamp=curdate()'''%tbname
+    sqlcmd='''select count(*) from tb_stamp where TableName='%s' and TStamp>=(select max(date) from zs159915)'''%tbname
     result=engine.execute(sqlcmd)
     if list(result)[0][0]==0:
         ret=0
@@ -115,16 +115,6 @@ def ggzbtj(CLName,code,rowcount,num):
     UB:REF(UPPER,1),LINETHICK2,COLORYELLOW;
     LB:REF(LOWER,1),LINETHICK2,COLORYELLOW;
     
-    {卖出：超越上轨10%，无法创新高}
-    ZWSHORT1:=(REF(CLOSE,1)>REF(MA(CLOSE,10)*1.1,1) AND HIGH<REF(HIGH,1));
-    DRAWICON(ZWSHORT1,HIGH*1.01,2);
-    
-    
-    {卖出：MACD.DEA零轴之上时，下跌超15%,大势已去，不宜久留，当天出现当天要走}
-    ZWSHORT2:=(CLOSE<(HHV(CLOSE,26)*0.85) AND MACD.DIF>0);
-    ZCOUNT2:=COUNT(ZWSHORT2,BARSLAST(SAR.SAR<CLOSE));
-    DRAWICON(ZCOUNT2=1 AND ZWSHORT2,HIGH*1.02,35);
-    
     
     {买入：一个下跌波段里，发生RSI上穿11或20，2次（含）以上}
     RSI:=SMA(MAX(CLOSE-REF(CLOSE,1),0),4,1)/SMA(ABS(CLOSE-REF(CLOSE,1)),4,1)*100;
@@ -142,6 +132,20 @@ def ggzbtj(CLName,code,rowcount,num):
     DRAWICON(ZCOUNT4=3 AND CVAR ,LOW*0.95,25);
     DRAWICON(ZCOUNT4>=4 AND CVAR ,LOW*0.95,25);
     DRAWICON(ZCOUNT4>=4 AND CVAR ,LOW*0.90,25);
+    
+    
+    {卖出：超越上轨10%，无法创新高}
+    ZWSHORT1:=(REF(CLOSE,1)>REF(MA(CLOSE,10)*1.1,1) AND HIGH<REF(HIGH,1));
+    DRAWICON(ZWSHORT1,HIGH*1.01,2);
+    
+    
+    {卖出：MACD.DEA零轴之上时，下跌超15%,大势已去，不宜久留，当天出现当天要走}
+    ZWSHORT2:=(CLOSE<(HHV(CLOSE,26)*0.85) AND MACD.DIF>0);
+    ZCOUNT2:=COUNT(ZWSHORT2,BARSLAST(SAR.SAR<CLOSE));
+    DRAWICON(ZCOUNT2=1 AND ZWSHORT2,HIGH*1.02,35);
+    
+    
+
     """
     #  计算交易价格kprice和策略分析采用的价格dprice,kprice一般采用次日的开盘价
     #买入价钱：明日以当日收盘价挂买单。如果买点当日收盘价>=明日最低价，则以当日收盘价为买入价，
@@ -174,14 +178,14 @@ def ggzbtj(CLName,code,rowcount,num):
 
     ####计算买入信号 
     #{买入：一个下跌波段里，发生RSI上穿11或20，2次（含）以上}
-    df['rsi']=BDta.RSI(df)
+    df=BDta.RSI(df)
     df['crsi']=BDta.CROSS(df['rsi'],11) 
     df['crsi2']=BDta.CROSS(df['rsi'],20)
     df['crsi'][df['crsi2']==1]=1 
     df['N0']=BDta.BARSLAST(df['sar']>df['close'])
     df['N1']=BDta.BARSLAST(df['MACDdiff']<df['MACDdea'])
 
-    df['N']=np.fmax(BDta.BARSLAST(df['MACDdiff']<df['MACDdea']), BDta.BARSLAST(df['sar']>df['close'])) 
+    df['N']=np.fmax(df.N1, df.N0)
     df['bcount']=BDta.COUNT(df['crsi'], df['N'])
     df['bcount'][df['bcount']<2]=0
     df['bcount'][df['bcount']!=0]=df['bcount']-1
@@ -294,6 +298,10 @@ def bxfx(CLName,codes):
     #最后交易日
     ds=initData('159915',Index=True)
     engine.execute('delete from  score where date=curdate()')
+    
+    #测试
+    #engine.execute('delete from  score where date=curdate() and code=002723' )    
+    
     #print(ds)
     #print(LDate)
     
