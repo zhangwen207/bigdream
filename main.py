@@ -336,6 +336,10 @@ def initData(code,Index=False):
             ds=ts.get_h_data(code).sort()
             ds.to_sql('qfq'+code,engine,if_exists='replace') 
             engine.execute('''insert into tb_stamp values ('qfq%s',curdate())'''%code)
+            sqlcmd='''select count(*) from qfq%s where date=(select max(date) from zs159915)'''%(code)
+            result=engine.execute(sqlcmd)
+            if list(result)[0][0]==0:
+                ds=None            
         else:
             ds=None
     return ds
