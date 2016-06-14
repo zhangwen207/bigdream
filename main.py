@@ -384,7 +384,8 @@ def MBRG():
         engine.execute('''insert into tb_stamp values ('stcode',curdate())''')
     
     #删除ST股票，删除主营业务收入增长低于40%的股票
-    result=engine.execute('select distinct code from growth where mbrg>0 and code not in (select code from stcode)')
+    #result=engine.execute('select distinct code from growth where mbrg>0 and code not in (select code from stcode)')
+    result=engine.execute('select distinct code from growth where  code not in (select code from stcode)')
     
     #测试测试
     #result=engine.execute('select distinct code from growth where code=002723')
